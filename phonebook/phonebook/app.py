@@ -1,0 +1,61 @@
+from flask import Flask
+from flask_restful import Api
+import sqlalchemy, logging, sys
+import json
+
+from models.User import User
+from conf.flaskConfig import Config
+from business.Select import Select
+from business.Insert import Insert
+from business.Delete import Delete
+from business.Update import Update
+
+from db import db
+
+# Load config file
+with open('conf/config.json', mode='r') as config_file:
+    CONFIG = json.load(config_file)
+
+# Construct the core application.
+app = Flask(__name__)
+api = Api(app)
+
+# configuration
+app.debug = True
+app.config.from_object(Config)
+
+db.init_app(app)
+
+# Routes
+api.add_resource(
+    Select, 
+    CONFIG.get('routes', {}).get('user', {}).get('select')
+)
+api.add_resource(
+    Insert,
+    CONFIG.get('routes', {}).get('user', {}).get('main')
+)
+api.add_resource(
+    Delete,
+    CONFIG.get('routes', {}).get('user', {}).get('main')
+)
+api.add_resource(
+    Update,
+    CONFIG.get('routes', {}).get('user', {}).get('update')
+)
+
+@app.before_first_request
+def create_tables() -> None :
+    """ To create/use the database mentioned in the URI, run this function. """ 
+    
+    logging.basicConfig(filename='app.log', format='%(asctime)s - [%(levelname)s] - %(message)s',  
+    datefmt='%d-%b-%y %H:%M:%S')
+    User.__table__
+    try:
+        db.create_all()
+    except sqlalchemy.exc.OperationalError as e:
+        logging.error(e)
+        sys.exit()
+
+if __name__ == '__main__':
+    app.run(host=CONFIG.get('host'), port=CONFIG.get('port'))
